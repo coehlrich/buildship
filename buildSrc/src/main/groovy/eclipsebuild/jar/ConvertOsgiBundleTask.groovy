@@ -6,11 +6,13 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
 abstract class ConvertOsgiBundleTask extends DefaultTask {
@@ -36,26 +38,28 @@ abstract class ConvertOsgiBundleTask extends DefaultTask {
     @InputFiles
     abstract ConfigurableFileCollection getResources()
 
-    @OutputDirectory
-    abstract DirectoryProperty getOutputDirectory()
+    @OutputFile
+    abstract RegularFileProperty getOutputFile()
 
     @TaskAction
     void convertOsgiBundle() {
         createNewBundle(project, JarBundleUtils.firstDependencyJar(pluginConfiguration.get()))
     }
 
-    void createNewBundle(Project project, File jar) {
+    void createNewBundle(Project project, File depJar) {
         String sourceReference = PluginUtils.sourceReference(project)
-        String manifest = JarBundleUtils.manifestContent(jar, template.get(), packageFilter.get(), bundleVersion.get(), qualifier.get(), sourceReference)
+        Iterable<File> localJars = project.tasks['jar'].outputs.files
+        String manifest = JarBundleUtils.manifestContent([depJar] + localJars, template.get(), packageFilter.get(), bundleVersion.get(), qualifier.get(), sourceReference)
 
         File extraResources = project.file("${project.buildDir}/tmp/bundle-resources")
         File manifestFile = new File(extraResources, '/META-INF/MANIFEST.MF')
         manifestFile.parentFile.mkdirs()
         manifestFile.text = manifest
 
-        File osgiJar = new File(outputDirectory.get().asFile, "osgi_${jar.name}")
+        File osgiJar = getOutputFile().get().asFile
         project.ant.zip(destfile: osgiJar) {
-            zipfileset(src: jar, excludes: 'META-INF/MANIFEST.MF')
+            localJars.each { jar -> zipfileset(src: jar, excludes: 'META-INF/MANIFEST.MF')}
+            zipfileset(src: depJar, excludes: 'META-INF/MANIFEST.MF')
         }
 
         project.ant.zip(update: 'true', destfile: osgiJar) {
