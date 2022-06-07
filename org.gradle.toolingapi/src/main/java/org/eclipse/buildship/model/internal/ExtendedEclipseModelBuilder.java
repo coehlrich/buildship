@@ -19,18 +19,19 @@ import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.plugins.ide.internal.tooling.eclipse.DefaultEclipseProject;
+import org.gradle.tooling.BuildController;
+import org.gradle.tooling.model.eclipse.EclipseProject;
 import org.gradle.tooling.provider.model.ToolingModelBuilder;
-import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry;
 
 import org.eclipse.buildship.model.ExtendedEclipseModel;
 import org.eclipse.buildship.model.ProjectInGradleConfiguration;
 
 class ExtendedEclipseModelBuilder implements ToolingModelBuilder {
 
-    protected final ToolingModelBuilderRegistry registry;
+    protected final BuildController buildController;
 
-    public ExtendedEclipseModelBuilder(ToolingModelBuilderRegistry registry) {
-        this.registry = registry;
+    public ExtendedEclipseModelBuilder(BuildController buildController) {
+        this.buildController = buildController;
     }
 
     @Override
@@ -40,8 +41,7 @@ class ExtendedEclipseModelBuilder implements ToolingModelBuilder {
 
     @Override
     public Object buildAll(String modelName, Project modelRoot) {
-        ToolingModelBuilder eclipseModelBuilder = this.registry.getBuilder("org.gradle.tooling.model.eclipse.EclipseProject");
-        DefaultEclipseProject eclipseProject = (DefaultEclipseProject) eclipseModelBuilder.buildAll(modelName, modelRoot);
+        DefaultEclipseProject eclipseProject = (DefaultEclipseProject) this.buildController.getModel(EclipseProject.class);
         return build(eclipseProject, modelRoot);
     }
 
